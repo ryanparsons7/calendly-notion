@@ -1,6 +1,6 @@
 # event_importer
 
-Imports Events from a Google Calendar and creates them in Notion DB
+Imports Events from Calendly and creates them in Notion DB
 
 ## Requirements:
 
@@ -16,3 +16,4 @@ CALENDLY_TOKEN=XXXXXXX
 CALENDLY_ORG=https://api.calendly.com/organizations/7a8b9c12-345d-678e-f012-3g456h789ijk
 #The prefix to add at the beginning of each ticket ID
 LINK_PREFIX=https://example.com/ticket/
+```
