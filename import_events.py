@@ -314,9 +314,11 @@ def main():
     calendarId = os.getenv("GOOGLE_CALENDAR_ID")
     LinkPrefix = os.getenv("LINK_PREFIX")
     orgId = os.getenv("CALENDLY_ORG")
+    daysCount = os.getenv("EVENT_SEARCH_DAYS")
 
     today = datetime.date.today() # Set variable for today.
-    week = today + datetime.timedelta(days=7) # set variable for a week from now.
+    endSearch = today + datetime.timedelta(days=int(daysCount)) # set variable for end of search.
+    print(f"Search range for events from {today} to {endSearch}.")
 
     # Set the start time for the search to today at 0:00:00 UTC.
     startTime = (
@@ -334,14 +336,14 @@ def main():
             .isoformat()
             + "Z"
         )
-    # Set the end time for the search for 7 days from now at the very end of the day UTC.
+    # Set the end time for the search for the number days from now at the very end of the day UTC.
     endTime = (
         datetime.datetime.now(datetime.UTC)
         .replace(
             tzinfo=None,
-            year=week.year,
-            month=week.month,
-            day=week.day,
+            year=endSearch.year,
+            month=endSearch.month,
+            day=endSearch.day,
             hour=23,
             minute=59,
             second=59,
