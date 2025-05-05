@@ -1,9 +1,8 @@
 import datetime
 import os
-import re
 import requests
 from dotenv import load_dotenv
-import time
+from dateutil import tz
 
 def getEventInviteeTicketNumber(event_id, token):
     """
@@ -155,11 +154,11 @@ def createNotionDatabasePages(bearerToken, databaseID, eventsArray, userDict):
                 "database_id": databaseID,
             },
             "properties": {
-                "Summary": {
-                    "title": [{"type": "text", "text": {"content": "Please Update"}}]
-                },
                 "Event ID": {
-                    "rich_text": [{"type": "text", "text": {"content": eventID}}]
+                    "title": [{"type": "text", "text": {"content": eventID}}]
+                },
+                "Summary": {
+                    "rich_text": [{"type": "text", "text": {"content": "Please Update"}}]
                 },
                 "Person(s)": {
                     "people": [{"id": userID}]
@@ -183,8 +182,18 @@ def createNotionDatabasePages(bearerToken, databaseID, eventsArray, userDict):
 
 
         if not (isEventPresentInDB(bearerToken, databaseID, eventID)):
-            x = requests.post(url, headers=headers, json=myjson)
-            print(f"Creating event in DB with ID {eventID}.")
+            print(f"Attempting to create event in DB with ID {eventID}.")
+            try:
+                # Make a GET request to the Calendly API with the specified headers and parameters.
+                x = requests.post(url, headers=headers, json=myjson)
+                
+                # Raise an exception if the request was unsuccessful.
+                x.raise_for_status()
+                print(x)
+            except requests.exceptions.RequestException as e:
+                # Print an error message if the API request fails and return an empty list.
+                print(f"Error create event in Notion DB: {e}")
+                return
         else:
             print(f"Event with ID {eventID} already exists, checking if start time needs updating.")
             doesEventNeedUpdating(bearerToken, databaseID, eventID, startTime)
@@ -205,13 +214,14 @@ def doesEventNeedUpdating(bearerToken, notionDB, eventID, startTime):
             "and": [
                 {
                     "property": "Event ID",
-                    "rich_text": {"equals": eventID},
+                    "title": {"equals": eventID},
                 }
             ]
         }
     }
 
     x = requests.post(url, headers=headers, json=myjson)
+    x.raise_for_status()
     jsonOutput = x.json()
     currentTime = jsonOutput["results"][0]["properties"]["Date & Time (Local)"]["date"]["start"]
     pageID = jsonOutput["results"][0]["id"]
@@ -244,8 +254,9 @@ def updateStartTime(bearerToken, pageID, newStartTime):
             },
         },
     }
-
+    print(f"Updating start time to {newStartTime} for page ID {pageID}.")
     x = requests.patch(url, headers=headers, json=myjson)
+    print(x)
 
 
 def isEventPresentInDB(bearerToken, notionDB, eventID):
@@ -262,7 +273,7 @@ def isEventPresentInDB(bearerToken, notionDB, eventID):
             "and": [
                 {
                     "property": "Event ID",
-                    "rich_text": {"equals": eventID},
+                    "title": {"equals": eventID},
                 }
             ]
         }
@@ -308,10 +319,9 @@ def getUsers(bearerToken):
 def main():
     # Load the environmental variables and drop them into variables to use later.
     load_dotenv()
-    token = os.getenv("NOTION_BEARER_TOKEN")
+    notionToken = os.getenv("NOTION_BEARER_TOKEN")
     calendlyToken = os.getenv("CALENDLY_TOKEN")
     notionDB = os.getenv("NOTION_DB_ID")
-    calendarId = os.getenv("GOOGLE_CALENDAR_ID")
     LinkPrefix = os.getenv("LINK_PREFIX")
     orgId = os.getenv("CALENDLY_ORG")
     daysCount = os.getenv("EVENT_SEARCH_DAYS")
@@ -322,7 +332,7 @@ def main():
 
     # Set the start time for the search to today at 0:00:00 UTC.
     startTime = (
-            datetime.datetime.now(datetime.UTC)
+            datetime.datetime.now(tz.UTC)
             .replace(
                 tzinfo=None,
                 year=today.year,
@@ -338,7 +348,7 @@ def main():
         )
     # Set the end time for the search for the number days from now at the very end of the day UTC.
     endTime = (
-        datetime.datetime.now(datetime.UTC)
+        datetime.datetime.now(tz.UTC)
         .replace(
             tzinfo=None,
             year=endSearch.year,
@@ -353,9 +363,9 @@ def main():
         + "Z"
         )
     
-    userList = getUsers(token) # Get the user dictionary list.
+    userList = getUsers(notionToken) # Get the user dictionary list.
     eventData = getCalendlyEvents(startTime, endTime, orgId, LinkPrefix, calendlyToken) # Grab the event data from Google Calendar.
-    createNotionDatabasePages(token, notionDB, eventData, userList) # Create the notion database pages with the event data.
+    createNotionDatabasePages(notionToken, notionDB, eventData, userList) # Create the notion database pages with the event data.
 
 if __name__ == "__main__":
     print("Version 1")
